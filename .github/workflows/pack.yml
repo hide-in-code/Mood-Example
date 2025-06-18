@@ -1,35 +1,38 @@
-name: CI
+name: Build APK
 
 on:
   push:
     branches:
-      - main
-    tags:
-      - '*'
-  pull_request:
-    paths-ignore:
-      - '**/*.md'
-      - '**/*.txt'
-      - '**/*.png'
-      - '**/*.jpg'
+      - main  # 触发分支，可根据需要修改
+  workflow_dispatch:  # 允许手动触发
 
 jobs:
   build:
-    name: Test on ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest]
-#        os: [ubuntu-latest, windows-latest, macos-latest]
+    name: Build APK
+    runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-java@v1
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
         with:
-          java-version: '12.x'
-      - uses: subosito/flutter-action@v1
+          flutter-version: "3.24.x"  # 确保包含 Dart 3.5+
+          channel: stable            # 可改为 beta/dev 以获取更新版本
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build APK (release)
+        run: flutter build apk --release
+
+      - name: Locate APK
+        run: |
+          find build/app/outputs/flutter-apk/ -name "*.apk" -exec echo "APK Path: {}" \;
+
+      - name: Upload APK as Artifact
+        uses: actions/upload-artifact@v4
         with:
-          flutter-version: '3.3.2'
-          channel: 'stable'
-      - run: flutter packages get
-      - run: flutter test
-      - run: flutter build apk --target-platform android-arm,android-arm64 --split-per-abi
+          name: app-release
+          path: build/app/outputs/flutter-apk/app-release.apk
